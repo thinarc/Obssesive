@@ -1,10 +1,17 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using _Project.Scripts.EntryPoints;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class HoverZoomTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
+    [Header("Hover Image (этот объект)")]
+    public Image hoverImage;
+
     [Header("Список изображений для зума")]
     public List<RectTransform> targetImages;
 
@@ -12,12 +19,35 @@ public class HoverZoomTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExi
     public float zoomScale = 1.15f;
     public float animationDuration = 0.15f;
 
-    // внутреннее хранилище исходных масштабов
+    [Header("Кривая анимации")]
+    public AnimationCurve animationCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
     private Dictionary<RectTransform, Vector3> originalScales = new Dictionary<RectTransform, Vector3>();
     private Dictionary<RectTransform, Coroutine> runningCoroutines = new Dictionary<RectTransform, Coroutine>();
 
+    // цвет по умолчанию и целевой
+    private Color originalColor;
+    public Color hoverColor = Color.red;
+
+    public GameObject text;
+    public Image binded;
+
     private void Awake()
     {
+        if (hoverImage == null)
+        {
+            hoverImage = GetComponent<Image>();
+            if (hoverImage) targetImages.Add(hoverImage.rectTransform);
+            if (binded) targetImages.Add(binded.rectTransform);
+        }
+        
+
+        if (hoverImage != null)
+        {
+            originalColor = hoverImage.color;
+        }
+        
+
         foreach (var rt in targetImages)
         {
             if (rt == null) continue;
@@ -25,8 +55,28 @@ public class HoverZoomTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExi
         }
     }
 
+    private bool prop;
+    private void Update()
+    {
+        if (binded != null && Input.GetMouseButton(0) && hoverImage.color == hoverColor)
+        {
+            transform.parent.DOMove(transform.parent.position + new Vector3(0, -6, 0), animationDuration * 20).SetEase(Ease.OutExpo);
+            if (!prop) Game1EntryPoint.propellers++;
+            prop = true;
+        }
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
+        // смена цвета
+        if (hoverImage != null)
+        {
+            hoverImage.color = hoverColor;
+            if (binded) binded.color = hoverColor;
+            if (text != null) text.SetActive(true);
+        }
+
+        // зум других элементов
         foreach (var rt in targetImages)
         {
             if (rt == null) continue;
@@ -36,6 +86,15 @@ public class HoverZoomTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExi
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        // возврат цвета
+        if (hoverImage != null)
+        {
+            hoverImage.color = originalColor;
+            if (binded) binded.color = originalColor;
+            if (text != null) text.SetActive(false);
+        }
+
+        // возврат масштаба
         foreach (var rt in targetImages)
         {
             if (rt == null) continue;
@@ -59,8 +118,10 @@ public class HoverZoomTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExi
         while (t < animationDuration)
         {
             t += Time.unscaledDeltaTime;
-            float k = t / animationDuration;
-            rt.localScale = Vector3.Lerp(start, targetScale, k);
+            float k = Mathf.Clamp01(t / animationDuration);
+            float c = animationCurve.Evaluate(k);
+
+            rt.localScale = Vector3.LerpUnclamped(start, targetScale, c);
             yield return null;
         }
 
