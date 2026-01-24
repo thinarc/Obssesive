@@ -324,6 +324,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 6091638918495354881}
   tilt: -10
+  chto: 0
 --- !u!114 &4282230842178129932
 MonoBehaviour:
   m_ObjectHideFlags: 0
